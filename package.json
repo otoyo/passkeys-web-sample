@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "dependencies": {
     "@simplewebauthn/server": "^13.2.2",
     "ejs": "^4.0.1",
