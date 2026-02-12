@@ -37,6 +37,12 @@ This repository is intended for local development and testing purposes to help y
 4.  **Open your browser:**
     Navigate to `http://localhost:3000`. You can now test the sign-up and sign-in functionality.
 
+## Screenshots
+
+<img width="908" height="425" alt="Image" src="https://github.com/user-attachments/assets/ca00b163-04b5-4207-ad5f-180a7b794451" />
+
+<img width="896" height="338" alt="Image" src="https://github.com/user-attachments/assets/f5b274b8-69e6-47b0-8236-0ceb7237e1cd" />
+
 ## How It Works
 
 The server runs on `http://localhost:3000` by default. It exposes a few endpoints to handle the WebAuthn flow:
