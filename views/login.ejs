@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Log in | Passkeys Web Sample</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
+  </head>
+  <body>
+    <nav class="relative bg-[#b6c9ff] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-white/10">
+      <div class="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
+        <div class="relative flex h-16 items-center justify-between">
+          <div class="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
+            <h1 class="px-3 py-2 text-xl font-bold">Log in | Passkeys Web Sample</h1>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="bg-gray-100 flex items-start justify-center min-h-screen pt-16">
+      <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold text-center text-gray-900">Welcome</h2>
+        <div>
+          <button
+          id="login"
+            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#4016a0] cursor-pointer"
+          >
+            Log in with a Passkey
+          </button>
+        </div>
+
+        <p class="mt-6 text-center text-sm text-gray-600">
+          Don't have an account?
+          <a href="/signup" class="font-medium text-indigo-600 hover:text-indigo-500">Sign up</a>
+        </p>
+      </div>
+    </div>
+
+    <script>
+      (async () => {
+        function base64urlToArrayBuffer(base64urlString) {
+          const base64 = base64urlString.replace(/-/g, '+').replace(/_/g, '/');
+          const padLength = (4 - (base64.length % 4)) % 4;
+          const paddedBase64 = base64 + '='.repeat(padLength);
+
+          const binaryString = atob(paddedBase64);
+
+          const buffer = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            buffer[i] = binaryString.charCodeAt(i);
+          }
+          return buffer.buffer;
+        }
+
+        const logClientCapabilities = async () => {
+          if (window.PublicKeyCredential && PublicKeyCredential.getClientCapabilities) {
+            const capabilities = await PublicKeyCredential.getClientCapabilities();
+            console.log(`userVerifyingPlatformAuthenticator: ${capabilities.userVerifyingPlatformAuthenticator}`);
+            console.log(`passkeyPlatformAuthenticator: ${capabilities.passkeyPlatformAuthenticator}`);
+            console.log(`conditionalGet: ${capabilities.conditionalGet}`);
+            console.log(`conditionalCreate: ${capabilities.conditionalCreate}`);
+            console.log(`hybridTransport: ${capabilities.hybridTransport}`);
+          } else {
+            console.log('PublicKeyCredential not supported');
+          }
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+          await logClientCapabilities();
+
+          document.getElementById('login').addEventListener('click', async () => {
+            const abortController = new AbortController();
+            const signal = abortController.signal;
+            signal.addEventListener('abort', () => {
+              console.log('Request aborted.');
+            });
+
+            try {
+              const authenticationRequestResponse = await fetch('/authenticationOptions');
+              if (!authenticationRequestResponse.ok) {
+                throw new Error('Options request failed.');
+              }
+
+              const publicKeyCredentialAuthenticationOptions = await authenticationRequestResponse.json();
+              publicKeyCredentialAuthenticationOptions.challenge = base64urlToArrayBuffer(publicKeyCredentialAuthenticationOptions.challenge);
+
+              const publicKeyCredential = await navigator.credentials.get({
+                publicKey: publicKeyCredentialAuthenticationOptions,
+                signal,
+              });
+
+              const authenticationResponseResponse = await fetch('/login', {
+                method: 'post',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(publicKeyCredential),
+                redirect: 'follow',
+              });
+              if (!authenticationResponseResponse.ok) {
+                console.log(authenticationResponseResponse);
+                throw new Error('Authentication request failed.');
+              }
+              location.href = '/';
+            } catch (err) {
+              console.log(err);
+            }
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

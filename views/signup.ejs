@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Sign up | Passkeys Web Sample</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1" type="module"></script>
+  </head>
+  <body>
+    <nav class="relative bg-[#b6c9ff] after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-white/10">
+      <div class="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
+        <div class="relative flex h-16 items-center justify-between">
+          <div class="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
+            <h1 class="px-3 py-2 text-xl font-bold">Sign up | Passkeys Web Sample</h1>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="bg-gray-100 flex items-start justify-center min-h-screen pt-16">
+      <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold text-center text-gray-900">Create Your Account</h2>
+        <form id="signup-form" class="space-y-4">
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
+            <div class="mt-1">
+              <input
+                name="email"
+                type="email"
+                id="email"
+                autocomplete="email"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                placeholder="your@example.com"
+              />
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#4016a0] cursor-pointer"
+            >
+              Register with a passkey
+            </button>
+          </div>
+
+          <p class="mt-6 text-center text-sm text-gray-600">
+            Already have an account?
+            <a href="/login" class="font-medium text-indigo-600 hover:text-indigo-500">
+              Log in
+            </a>
+          </p>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      (async () => {
+        function base64urlToArrayBuffer(base64urlString) {
+          const base64 = base64urlString.replace(/-/g, '+').replace(/_/g, '/');
+          const padLength = (4 - (base64.length % 4)) % 4;
+          const paddedBase64 = base64 + '='.repeat(padLength);
+
+          const binaryString = atob(paddedBase64);
+
+          const buffer = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            buffer[i] = binaryString.charCodeAt(i);
+          }
+          return buffer.buffer;
+        }
+
+        const logClientCapabilities = async () => {
+          if (window.PublicKeyCredential && PublicKeyCredential.getClientCapabilities) {
+            const capabilities = await PublicKeyCredential.getClientCapabilities();
+            console.log(`userVerifyingPlatformAuthenticator: ${capabilities.userVerifyingPlatformAuthenticator}`);
+            console.log(`passkeyPlatformAuthenticator: ${capabilities.passkeyPlatformAuthenticator}`);
+            console.log(`conditionalGet: ${capabilities.conditionalGet}`);
+            console.log(`conditionalCreate: ${capabilities.conditionalCreate}`);
+            console.log(`hybridTransport: ${capabilities.hybridTransport}`);
+          } else {
+            console.log('PublicKeyCredential not supported');
+          }
+        };
+
+        document.addEventListener('DOMContentLoaded', async () => {
+          await logClientCapabilities();
+
+          document.getElementById('signup-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const email = document.getElementById('email').value;
+
+            const abortController = new AbortController();
+            const signal = abortController.signal;
+            signal.addEventListener('abort', () => {
+              console.log('Request aborted.');
+            });
+
+            try {
+              const registerRequestResponse = await fetch(`/registrationOptions?${new URLSearchParams({ email })}`);
+              if (!registerRequestResponse.ok) {
+                throw new Error('Options request failed.');
+              }
+
+              const publicKeyCredentialCreationOptions = await registerRequestResponse.json();
+              publicKeyCredentialCreationOptions.challenge = base64urlToArrayBuffer(publicKeyCredentialCreationOptions.challenge);
+              publicKeyCredentialCreationOptions.user.id = base64urlToArrayBuffer(publicKeyCredentialCreationOptions.user.id);
+
+              const publicKeyCredential = await navigator.credentials.create({
+                publicKey: publicKeyCredentialCreationOptions,
+                signal,
+              });
+
+              const registerResponseResponse = await fetch('/signup', {
+                method: 'post',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(publicKeyCredential),
+                redirect: 'follow',
+              });
+              if (!registerResponseResponse.ok) {
+                throw new Error('Register request failed.');
+              }
+              location.href = '/';
+            } catch (err) {
+              console.log(err);
+            }
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>
